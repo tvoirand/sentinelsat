@@ -410,8 +410,9 @@ class SentinelAPI:
     def get_product_odata(self, id, full=False):
         """Access OData API to get info about a product.
 
-        Returns a dict containing the id, title, size, md5sum, date, footprint and download url
-        of the product. The date field corresponds to the Start ContentDate value.
+        Returns a dict containing the id, title, size, checksum algorithm, checksum value, date,
+        footprint and download url of the product. The date field corresponds to the Start
+        ContentDate value.
 
         If `full` is set to True, then the full, detailed metadata of the product is returned
         in addition to the above.
@@ -1586,7 +1587,8 @@ def _parse_odata_response(product):
         "id": product["Id"],
         "title": product["Name"],
         "size": int(product["ContentLength"]),
-        product["Checksum"]["Algorithm"].lower(): product["Checksum"]["Value"],
+        "checksum algorithm": product["Checksum"]["Algorithm"].lower(),
+        "checksum value": product["Checksum"]["Value"],
         "date": _parse_odata_timestamp(product["ContentDate"]["Start"]),
         "footprint": _parse_gml_footprint(product["ContentGeometry"]),
         "url": product["__metadata"]["media_src"],
