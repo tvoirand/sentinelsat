@@ -24,7 +24,7 @@ class SentinelProductsAPI(sentinelsat.SentinelAPI):
 
     * the file *path* within the product (e.g. "./preview/map-overlay.kml")
     * the file size in bytes (int)
-    * the file md5
+    * the file checksum
 
     It the *nodefilter* function returns True the corresponding file is downloaded,
     otherwise the file is not downloaded.
@@ -84,7 +84,8 @@ class SentinelProductsAPI(sentinelsat.SentinelAPI):
         node_info = product_info.copy()
         node_info["url"] = url
         node_info["node_path"] = "./manifest.safe"
-        del node_info["md5"]
+        del node_info["checksum algorithm"]
+        del node_info["checksum value"]
 
         if path and path.exists():
             self.logger.info("manifest file already available (%r), skip download", path)
@@ -119,7 +120,8 @@ class SentinelProductsAPI(sentinelsat.SentinelAPI):
         node_info = product_info.copy()
         node_info["url"] = self._path_to_url(product_info, path, "value")
         node_info["size"] = dataobj_info["size"]
-        node_info["md5"] = dataobj_info["md5"]
+        node_info["checksum algorithm"] = dataobj_info["checksum algorithm"]
+        node_info["checksum value"] = dataobj_info["checksum value"]
         node_info["node_path"] = dataobj_info["href"]
         # node_info["parent"] = product_info
 
@@ -153,7 +155,7 @@ class SentinelProductsAPI(sentinelsat.SentinelAPI):
         directory_path : string, optional
             Where the file will be downloaded
         checksum : bool, optional
-            If True, verify the downloaded file's integrity by checking its MD5 checksum.
+            If True, verify the downloaded file's integrity by checking its checksum.
             Throws InvalidChecksumError if the checksum does not match.
             Defaults to True.
         nodefilter : callable, optional
@@ -172,7 +174,7 @@ class SentinelProductsAPI(sentinelsat.SentinelAPI):
         Raises
         ------
         InvalidChecksumError
-            If the MD5 checksum does not match the checksum on the server.
+            If the checksum does not match the checksum on the server.
         """
         if nodefilter is None:
             return sentinelsat.SentinelAPI.download(self, id, directory_path, checksum, **kwargs)
@@ -225,8 +227,8 @@ def _xml_to_dataobj_info(element):
     # assert data['locator_type'] == "URL"
 
     elem = element.find("byteStream/checksum")
-    assert elem.attrib["checksumName"].upper() == "MD5"
-    data["md5"] = elem.text
+    data["checksum algorithm"] = elem.attrib["checksumName"].lower()
+    data["checksum value"] = elem.text
 
     return data
 
