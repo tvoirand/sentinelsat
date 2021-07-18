@@ -485,7 +485,7 @@ class SentinelAPI:
         directory_path : string, optional
             Where the file will be downloaded
         checksum : bool, optional
-            If True, verify the downloaded file's integrity by checking its MD5 checksum.
+            If True, verify the downloaded file's integrity by checking its checksum.
             Throws InvalidChecksumError if the checksum does not match.
             Defaults to True.
 
@@ -498,7 +498,7 @@ class SentinelAPI:
         Raises
         ------
         InvalidChecksumError
-            If the MD5 checksum does not match the checksum on the server.
+            If the checksum does not match the checksum on the server.
         LTATriggered
             If the product has been archived and its retrieval was successfully triggered.
         LTAError
@@ -544,7 +544,9 @@ class SentinelAPI:
                 )
                 temp_path.unlink()
             elif size == product_info["size"]:
-                if verify_checksum and not self._md5_compare(temp_path, product_info["md5"]):
+                if verify_checksum and not self._checksum_compare(
+                    temp_path, product_info["checksum value"], product_info["checksum algorithm"]
+                ):
                     # Log a warning since this should never happen
                     self.logger.warning(
                         "Existing incomplete file %s appears to be fully downloaded but "
@@ -566,9 +568,11 @@ class SentinelAPI:
             product_info["downloaded_bytes"] = self._download(
                 product_info["url"], temp_path, product_info["size"]
             )
-        # Check integrity with MD5 checksum
+        # Check integrity with checksum
         if verify_checksum is True:
-            if not self._md5_compare(temp_path, product_info["md5"]):
+            if not self._checksum_compare(
+                temp_path, product_info["checksum value"], product_info["checksum algorithm"]
+            ):
                 temp_path.unlink()
                 raise InvalidChecksumError("File corrupt: checksums do not match")
         # Download successful, rename the temporary file to its proper name
@@ -682,7 +686,7 @@ class SentinelAPI:
         max_attempts : int, optional
             Number of allowed retries before giving up downloading a product. Defaults to 10.
         checksum : bool, optional
-            If True, verify the downloaded files' integrity by checking its MD5 checksum.
+            If True, verify the downloaded files' integrity by checking its checksum.
             Throws InvalidChecksumError if the checksum does not match.
             Defaults to True.
         n_concurrent_dl : integer
@@ -868,7 +872,7 @@ class SentinelAPI:
         directory_path : string, optional
             Where the file will be downloaded
         checksum : bool, optional
-            If True, verify the downloaded file's integrity by checking its MD5 checksum.
+            If True, verify the downloaded file's integrity by checking its checksum.
             Throws InvalidChecksumError if the checksum does not match.
             Defaults to True.
         max_attempts : int, optional
@@ -1154,8 +1158,8 @@ class SentinelAPI:
 
             is_fine = False
             for product_info in product_infos[name]:
-                if path.stat().st_size == product_info["size"] and self._md5_compare(
-                    path, product_info["md5"]
+                if path.stat().st_size == product_info["size"] and self._checksum_compare(
+                    path, product_info["checksum value"], product_info["checksum algorithm"]
                 ):
                     is_fine = True
                     break
@@ -1167,22 +1171,25 @@ class SentinelAPI:
 
         return corrupt
 
-    def _md5_compare(self, file_path, checksum, block_size=2 ** 13):
-        """Compare a given MD5 checksum with one calculated from a file."""
+    def _checksum_compare(self, file_path, checksum, algorithm, block_size=2 ** 13):
+        """Compare a given checksum with one calculated from a file."""
         file_path = Path(file_path)
         file_size = file_path.stat().st_size
         with self._tqdm(
-            desc="MD5 checksumming", total=file_size, unit="B", unit_scale=True
+            desc="Checksumming", total=file_size, unit="B", unit_scale=True
         ) as progress:
-            md5 = hashlib.md5()
+            if algorithm.lower() == "md5":
+                file_checksum = hashlib.md5()
+            elif algorithm.lower() == "sha3-256":
+                file_checksum = hashlib.sha3_256()
             with open(file_path, "rb") as f:
                 while True:
                     block_data = f.read(block_size)
                     if not block_data:
                         break
-                    md5.update(block_data)
+                    file_checksum.update(block_data)
                     progress.update(len(block_data))
-            return md5.hexdigest().lower() == checksum.lower()
+            return file_checksum.hexdigest().lower() == checksum.lower()
 
     def _download(self, url, path, file_size):
         headers = {}
