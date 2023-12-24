@@ -1385,7 +1385,9 @@ def _parse_opensearch_response(products):
                         product_dict[name] = p["href"]
                 else:
                     f = converters.get(key, default_converter)
-                    for p in properties:
+                    for p in [  # element 'format' violates the name:content convention
+                        prop for prop in properties if not prop["name"] == "format"
+                    ]:
                         try:
                             product_dict[p["name"]] = f(p["content"])
                         except KeyError:
